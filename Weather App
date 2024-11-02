@@ -1,0 +1,117 @@
+// Importações necessárias
+import 'dart:convert';  // Para trabalhar com JSON
+import 'dart:io';      // Para entrada/saída de dados
+import 'package:http/http.dart' as http;  // Para fazer requisições HTTP
+
+// Classe principal para armazenar os dados do tempo
+class PrevisaoTempo {
+  String cidade;
+  double temperatura;
+  String descricao;
+  int umidade;
+  double velocidadeVento;
+
+  // Construtor da classe
+  PrevisaoTempo({
+    required this.cidade,
+    required this.temperatura,
+    required this.descricao,
+    required this.umidade,
+    required this.velocidadeVento,
+  });
+
+  // Método para criar objeto a partir do JSON
+  factory PrevisaoTempo.fromJson(Map<String, dynamic> json) {
+    return PrevisaoTempo(
+      cidade: json['name'],
+      // Convertendo de Kelvin para Celsius
+      temperatura: (json['main']['temp'] - 273.15),
+      descricao: json['weather'][0]['description'],
+      umidade: json['main']['humidity'],
+      velocidadeVento: json['wind']['speed'].toDouble(),
+    );
+  }
+
+  // Método para exibir os dados de forma organizada
+  void mostrarDados() {
+    print('\n=== Previsão do Tempo para $cidade ===');
+    print('Temperatura: ${temperatura.toStringAsFixed(1)}°C');
+    print('Descrição: $descricao');
+    print('Umidade: $umidade%');
+    print('Velocidade do Vento: ${velocidadeVento} m/s');
+    print('=====================================\n');
+  }
+}
+
+// Classe para gerenciar as requisições à API
+class ServicoPrevisao {
+  // Substitua pela sua chave da API
+  final String apiKey = 'SUA_API_KEY_AQUI';
+  final String baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
+
+  // Método para buscar dados do tempo
+  Future<PrevisaoTempo> buscarTempo(String cidade) async {
+    try {
+      // Faz a requisição HTTP
+      final response = await http.get(
+        Uri.parse('$baseUrl?q=$cidade&appid=$apiKey&lang=pt_br'),
+      );
+
+      // Verifica se a requisição foi bem sucedida
+      if (response.statusCode == 200) {
+        return PrevisaoTempo.fromJson(json.decode(response.body));
+      } else {
+        throw 'Erro ${response.statusCode}: Não foi possível obter dados para esta cidade';
+      }
+    } catch (e) {
+      throw 'Erro ao buscar dados: $e';
+    }
+  }
+}
+
+// Função principal que roda o programa
+void main() async {
+  var servico = ServicoPrevisao();
+  
+  while (true) {
+    try {
+      // Menu principal
+      print('\n=== App de Previsão do Tempo ===');
+      print('1. Buscar previsão do tempo');
+      print('2. Sair');
+      print('Digite sua escolha: ');
+      
+      String? escolha = stdin.readLineSync();
+      
+      if (escolha == '2') {
+        print('Obrigado por usar nosso app!');
+        break;
+      }
+      
+      if (escolha == '1') {
+        // Solicita a cidade ao usuário
+        print('\nDigite o nome da cidade: ');
+        String? cidade = stdin.readLineSync();
+        
+        if (cidade != null && cidade.isNotEmpty) {
+          print('\nBuscando dados para $cidade...');
+          
+          // Busca e exibe os dados
+          var previsao = await servico.buscarTempo(cidade);
+          previsao.mostrarDados();
+        } else {
+          print('Cidade inválida!');
+        }
+      } else {
+        print('Opção inválida!');
+      }
+      
+    } catch (e) {
+      print('Erro: $e');
+    }
+    
+    // Pergunta se quer continuar
+    print('Pressione ENTER para continuar...');
+    stdin.readLineSync();
+  }
+}
